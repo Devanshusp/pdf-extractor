@@ -1,3 +1,7 @@
+# Project
+local.yml
+.local.*
+
 # Python
 __pycache__/
 *.py[cod]
