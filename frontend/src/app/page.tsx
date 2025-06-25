@@ -6,36 +6,20 @@ import { CanvasLayer, HighlightLayer, Page, Pages, Root, TextLayer, usePdfJump, 
 import "@/lib/setup";
 import { useDebounce } from "use-debounce";
 
-const EXAMPLES = [
-  {
-    id: 1,
-    title: "Highlight 1",
-    text: "Attention Is All You Need",
-    highlights: [
-      {
-        pageNumber: 1,
-        left: 211,
-        top: 116,
-        width: 399 - 211,
-        height: 17,
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: "Highlight 2",
-    text: "Another highlight example",
-    highlights: [
-      {
-        pageNumber: 9,
-        left: 211.488,
-        top: 113.046,
-        width: 399.893 - 211.488,
-        height: 113.046 - 101.168,
-      },
-    ],
-  },
-];
+interface Highlight {
+  pageNumber: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface HighlightItem {
+  id: number;
+  title: string;
+  text: string;
+  highlights: Highlight[];
+}
 
 const DEFAULT_PDF_URL = 'https://d6ziqu2pgbz50.cloudfront.net/content/d62bb70c7285458685917e555ad89819.pdf';
 const SEARCH_DEBOUNCE_MS = 500;
@@ -171,10 +155,32 @@ function HighlightsPanel({
   selectedExample: number | null;
   setSelectedExample: (id: number) => void;
 }) {
+  const [highlights, setHighlights] = useState<HighlightItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const setHighlight = usePdf(state => state.setHighlight);
   const { jumpToHighlightRects } = usePdfJump();
 
-  const handleExampleClick = (example: typeof EXAMPLES[0]) => {
+  useEffect(() => {
+    const loadHighlights = async () => {
+      try {
+        const response = await fetch('/api/highlights');
+        if (response.ok) {
+          const data = await response.json();
+          setHighlights(data);
+        } else {
+          console.error('Failed to load highlights');
+        }
+      } catch (error) {
+        console.error('Error loading highlights:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHighlights();
+  }, []);
+
+  const handleExampleClick = (example: HighlightItem) => {
     setSelectedExample(example.id);
     setHighlight(example.highlights);
     jumpToHighlightRects(example.highlights, "pixels");
@@ -182,25 +188,29 @@ function HighlightsPanel({
 
   return (
     <div style={{ width: 340, height: 600, borderLeft: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
-      <div className="p-6 border-b border-gray-200">
-        <h2 className="text-xl font-bold mb-6 text-black">Highlights</h2>
-        <div className="space-y-4">
-          {EXAMPLES.map((example) => (
-            <button
-              key={example.id}
-              type="button"
-              onClick={() => handleExampleClick(example)}
-              className={`w-full text-left p-4 rounded-lg border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2
-                ${selectedExample === example.id
-                  ? "bg-yellow-100 border-yellow-400 shadow-md"
-                  : "bg-white hover:bg-gray-100 border-gray-200 shadow-sm"
-                }`}
-            >
-              <div className="font-semibold text-black mb-1">{example.title}</div>
-              <div className="text-sm text-gray-800">{example.text}</div>
-            </button>
-          ))}
-        </div>
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="text-lg font-semibold text-black">Transcript</h2>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="text-center py-4 text-gray-500">Loading transcript...</div>
+        ) : (
+          <div className="p-4 space-y-2">
+            {highlights.map((example) => (
+              <div
+                key={example.id}
+                onClick={() => handleExampleClick(example)}
+                className={`cursor-pointer p-2 rounded transition-colors duration-150 hover:bg-gray-50
+                  ${selectedExample === example.id
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700"
+                  }`}
+              >
+                <div className="text-sm leading-relaxed">{example.text}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
