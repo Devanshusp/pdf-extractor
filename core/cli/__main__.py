@@ -1,4 +1,5 @@
 import json
+import time
 
 import click
 
@@ -52,6 +53,7 @@ def extract(ctx, pdf_url: str):
     """Extract PDF data"""
     config: ExtractorConfig = ctx.obj["config"]
     extractor = Extractor.from_config(config)
+    s_time = time.time()
     pdf_page_data = extractor.extract_pdf(pdf_url=pdf_url)
     text_chunks = extractor.page_data_to_text_chunks(pdf_page_data, by="blocks")
 
@@ -73,6 +75,9 @@ def extract(ctx, pdf_url: str):
                 ],
             }
         )
+
+    doc_ms = (time.time() - s_time) * 1000
+    print(f"Document processing took: {doc_ms:.2f}ms")
 
     with open(f".local.output.json", "w", encoding="utf-8") as f:
         json_list = final_output

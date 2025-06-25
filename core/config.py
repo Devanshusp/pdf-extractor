@@ -19,8 +19,10 @@ class LLMConfig(BaseModel):
 class ExtractorConfig(BaseSettings, case_sensitive=False):
     llm: LLMConfig
 
-    custom_config_path: ClassVar[Path | None] = None
+    max_pdf_file_size_bytes: int
+    max_pdf_file_page_count: int
 
+    custom_config_path: ClassVar[Path | None] = None
 
     @classmethod
     def settings_customise_sources(
@@ -39,10 +41,16 @@ class ExtractorConfig(BaseSettings, case_sensitive=False):
         ]
 
         if cls.custom_config_path is not None:
-            sources.append(YamlConfigSettingsSource(settings_cls, yaml_file=cls.custom_config_path))
+            sources.append(
+                YamlConfigSettingsSource(settings_cls, yaml_file=cls.custom_config_path)
+            )
 
         if LOCAL_CONFIG_PATH.exists():
-            sources.append(YamlConfigSettingsSource(settings_cls, yaml_file=LOCAL_CONFIG_PATH))
+            sources.append(
+                YamlConfigSettingsSource(settings_cls, yaml_file=LOCAL_CONFIG_PATH)
+            )
 
-        sources.append(YamlConfigSettingsSource(settings_cls, yaml_file=BASE_CONFIG_PATH))
+        sources.append(
+            YamlConfigSettingsSource(settings_cls, yaml_file=BASE_CONFIG_PATH)
+        )
         return tuple(sources)
