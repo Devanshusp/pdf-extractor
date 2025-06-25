@@ -10,7 +10,7 @@ class LLM:
         self.api_key = api_key
 
     @classmethod
-    def from_config(cls, config: LLMConfig):
+    def from_config(cls, config: LLMConfig) -> "LLM":
         return cls(
             model_name=config.model_name,
             api_key=config.api_key.get_secret_value(),

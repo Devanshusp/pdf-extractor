@@ -7,6 +7,11 @@ requires-python = ">=3.12"
 dependencies = [
     "click>=8.2.1",
     "litellm>=1.73.0",
+    "markdowncleaner>=0.2.0",
+    "mdformat>=0.7.22",
+    "nltk>=3.9.1",
     "pydantic>=2.11.7",
     "pydantic-settings[yaml]>=2.10.0",
+    "pymupdf>=1.26.1",
+    "pymupdf4llm>=0.0.25",
 ]
