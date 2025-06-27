@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
             remove_non_alpha
         } = await request.json();
 
-        const apiRes = await fetch('https://pdf-extractor-oiyg.onrender/extract', {
+        const apiRes = await fetch('https://pdf-extractor-oiyg.onrender.com/extract', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -25,8 +26,7 @@ export async function POST(request: Request) {
         });
 
         if (!apiRes.ok) {
-            const error = await apiRes.json();
-            return NextResponse.json({ error: error.detail || 'Backend error' }, { status: 500 });
+            return NextResponse.json({ error: 'Backend error' }, { status: 500 });
         }
 
         const data = await apiRes.json();

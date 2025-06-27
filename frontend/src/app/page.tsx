@@ -153,9 +153,9 @@ export default function Home() {
         console.error('Error details:', errorText);
         setError('Failed to load highlights: ' + (errorText || response.statusText));
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading highlights:', error);
-      setError('Error loading highlights: ' + (error?.message || 'Unknown error'));
+      setError('Error loading highlights: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
