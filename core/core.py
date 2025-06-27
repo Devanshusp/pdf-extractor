@@ -1,5 +1,6 @@
 import json
-from functools import lru_cache
+import time
+from functools import lru_cache, wraps
 from typing import List, Literal
 
 import pymupdf
@@ -8,6 +9,27 @@ import requests
 from .config import ExtractorConfig
 from .lm import LLM
 from .output import PageData, TextChunk, TextExtractionSettings
+
+
+def timed_lru_cache(seconds: int, maxsize: int = 128):
+    """LRU cache with time-based expiration."""
+
+    def wrapper(fn):
+        fn = lru_cache(maxsize=maxsize)(fn)
+        fn.lifetime = seconds
+        fn.expiry = time.time() + fn.lifetime
+
+        @wraps(fn)
+        def wrapped(*args, **kwargs):
+            if time.time() >= fn.expiry:
+                fn.cache_clear()
+                fn.expiry = time.time() + fn.lifetime
+            return fn(*args, **kwargs)
+
+        wrapped.cache_clear = fn.cache_clear
+        return wrapped
+
+    return wrapper
 
 
 class Extractor:
@@ -27,7 +49,7 @@ class Extractor:
             max_pdf_file_page_count=config.max_pdf_file_page_count,
         )
 
-    @lru_cache(maxsize=6)
+    @timed_lru_cache(seconds=600, maxsize=6)
     def extract_pdf(self, pdf_url: str) -> List[PageData]:
         """
         Extract text data from a PDF using built-in text and OCR capabilities.
