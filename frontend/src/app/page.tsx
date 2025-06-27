@@ -53,8 +53,8 @@ function HighlightsPanel({
     if (!chunk) return 56;
     const charCount = chunk.text.length;
     const baseHeight = 32;
-    const lineHeight = 20;
-    const estimatedLines = Math.max(1, Math.ceil(charCount / 50));
+    const lineHeight = 24;
+    const estimatedLines = Math.max(1, Math.ceil(charCount / 35));
     return baseHeight + (estimatedLines * lineHeight);
   }, [highlights]);
 
