@@ -101,15 +101,21 @@ export default function Home() {
   const [selectedExample, setSelectedExample] = useState<number | null>(null);
   const [highlights, setHighlights] = useState<TextChunk[]>([]);
   const [loading, setLoading] = useState(false);
+  // Settings state
+  const [by, setBy] = useState<'spans' | 'lines' | 'blocks'>('blocks');
+  const [cleanSpans, setCleanSpans] = useState(false);
+  const [cleanText, setCleanText] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadHighlights = async (url?: string, by: "spans" | "lines" | "blocks" = "blocks") => {
+  const loadHighlights = async (url?: string, by: "spans" | "lines" | "blocks" = "blocks", clean_spans: boolean = false, clean_text: boolean = false) => {
     setLoading(true);
+    setError(null);
     try {
       if (!url) throw new Error('PDF URL is required');
       const response = await fetch('/api/highlights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdf_url: url, by }),
+        body: JSON.stringify({ pdf_url: url, by, clean_spans, clean_text }),
       });
       if (response.ok) {
         const data = await response.json();
@@ -118,9 +124,11 @@ export default function Home() {
         console.error('Failed to load highlights:', response.statusText);
         const errorText = await response.text();
         console.error('Error details:', errorText);
+        setError('Failed to load highlights: ' + (errorText || response.statusText));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading highlights:', error);
+      setError('Error loading highlights: ' + (error?.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -129,13 +137,27 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (pdfUrl) {
-      loadHighlights(pdfUrl);
+      loadHighlights(pdfUrl, by, cleanSpans, cleanText);
       setDisplayedPdfUrl(pdfUrl);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col p-4 font-sans">
+      {error && (
+        <div className="mb-4 max-w-4xl mx-auto">
+          <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded flex items-center justify-between">
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="ml-4 text-red-600 hover:text-red-800 font-bold text-lg focus:outline-none"
+              aria-label="Dismiss error"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="mb-6 w-full max-w-4xl mx-auto">
         <div className="flex flex-row items-center gap-4 w-full">
           <input
@@ -153,6 +175,39 @@ export default function Home() {
           >
             Load
           </button>
+        </div>
+        {/* Settings row */}
+        <div className="flex flex-row items-center gap-6 mt-3 px-1 text-sm text-gray-700">
+          <label className="flex items-center gap-2">
+            <span>By:</span>
+            <select
+              value={by}
+              onChange={e => setBy(e.target.value as 'spans' | 'lines' | 'blocks')}
+              className="border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
+            >
+              <option value="spans">Spans</option>
+              <option value="lines">Lines</option>
+              <option value="blocks">Blocks</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={cleanSpans}
+              onChange={e => setCleanSpans(e.target.checked)}
+              className="accent-blue-600"
+            />
+            Clean Spans
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={cleanText}
+              onChange={e => setCleanText(e.target.checked)}
+              className="accent-blue-600"
+            />
+            Clean Text
+          </label>
         </div>
       </form>
       {displayedPdfUrl && (

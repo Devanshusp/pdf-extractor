@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
     try {
-        const { pdf_url, by } = await request.json();
+        const { pdf_url, by, clean_spans, clean_text } = await request.json();
 
         // Call your FastAPI backend
         const apiRes = await fetch('http://localhost:8000/extract', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdf_url, by }),
+            body: JSON.stringify({ pdf_url, by, clean_spans, clean_text }),
         });
 
         if (!apiRes.ok) {
