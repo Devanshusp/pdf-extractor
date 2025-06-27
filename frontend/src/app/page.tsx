@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { CanvasLayer, HighlightLayer, Page, Pages, Root, TextLayer, usePdfJump, usePdf } from "@anaralabs/lector";
 import "@/lib/setup";
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 
 interface TextChunk {
   page_number: number;
@@ -54,22 +55,30 @@ function HighlightsPanel({
         {loading ? (
           <div className="text-center py-4 text-gray-500">Loading transcript...</div>
         ) : (
-          <div className="p-2 space-y-2">
-            {highlights.map((chunk, index) => (
-              <div
-                key={`${chunk.page_number}-${index}`}
-                onClick={() => handleExampleClick(chunk, index)}
-                className={`cursor-pointer p-2 rounded-lg transition-colors duration-100 border-l-4 mb-1 overflow-hidden
-                  ${selectedExample === index
-                    ? "bg-blue-100 border-blue-500 text-blue-900"
-                    : "bg-white border-transparent text-gray-800 hover:bg-gray-100"
-                  }`}
-                style={{ wordBreak: 'break-word', overflowX: 'hidden' }}
-              >
-                <div className="text-sm leading-relaxed break-words">{chunk.text}</div>
-              </div>
-            ))}
-          </div>
+          <List
+            height={540}
+            itemCount={highlights.length}
+            itemSize={56}
+            width={340}
+          >
+            {({ index, style }: ListChildComponentProps) => {
+              const chunk = highlights[index];
+              return (
+                <div
+                  key={`${chunk.page_number}-${index}`}
+                  style={style}
+                  onClick={() => handleExampleClick(chunk, index)}
+                  className={`cursor-pointer px-3 py-2 rounded transition-colors duration-75 mb-1 text-sm leading-relaxed break-words
+                    ${selectedExample === index
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-white text-gray-800 hover:bg-gray-100"
+                    }`}
+                >
+                  {chunk.text}
+                </div>
+              );
+            }}
+          </List>
         )}
       </div>
     </div>

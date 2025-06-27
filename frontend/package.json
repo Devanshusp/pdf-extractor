@@ -14,6 +14,7 @@
     "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-window": "^1.8.11",
     "use-debounce": "^10.0.5"
   },
   "devDependencies": {
@@ -22,6 +23,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-window": "^1.8.8",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
     "tailwindcss": "^4",
