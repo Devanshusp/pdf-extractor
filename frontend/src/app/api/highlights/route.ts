@@ -11,7 +11,7 @@ export async function POST(request: Request) {
             remove_non_alpha
         } = await request.json();
 
-        const apiRes = await fetch('http://localhost:8000/extract', {
+        const apiRes = await fetch('https://pdf-extractor-oiyg.onrender/extract', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CanvasLayer, HighlightLayer, Page, Pages, Root, TextLayer, usePdfJump, usePdf } from "@anaralabs/lector";
 import "@/lib/setup";
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
