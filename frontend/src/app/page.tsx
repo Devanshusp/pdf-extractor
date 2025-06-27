@@ -1,10 +1,10 @@
 // src/app/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { CanvasLayer, HighlightLayer, Page, Pages, Root, TextLayer, usePdfJump, usePdf } from "@anaralabs/lector";
 import "@/lib/setup";
-import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import { VariableSizeList as List, ListChildComponentProps } from 'react-window';
 
 interface TextChunk {
   page_number: number;
@@ -48,6 +48,19 @@ function HighlightsPanel({
     jumpToHighlightRects([highlightRect], "pixels");
   };
 
+  const getItemSize = useCallback((index: number) => {
+    const chunk = highlights[index];
+    if (!chunk) return 56;
+    const charCount = chunk.text.length;
+    const baseHeight = 32;
+    const lineHeight = 20;
+    const estimatedLines = Math.max(1, Math.ceil(charCount / 50));
+    return baseHeight + (estimatedLines * lineHeight);
+  }, [highlights]);
+
+  // memoize for optimmization
+  const itemSize = useMemo(() => getItemSize, [getItemSize]);
+
   return (
     <div style={{ width: 340, height: 600, borderLeft: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
       <div className="p-4 border-b border-gray-200">
@@ -66,7 +79,7 @@ function HighlightsPanel({
             <List
               height={540}
               itemCount={highlights.length}
-              itemSize={56}
+              itemSize={itemSize}
               width={340}
             >
               {({ index, style }: ListChildComponentProps) => {
