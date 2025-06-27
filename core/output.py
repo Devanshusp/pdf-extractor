@@ -1,7 +1,7 @@
 import json
 import statistics
 from collections import Counter
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 from wordfreq import zipf_frequency
@@ -39,22 +39,33 @@ class BoundingBox(BaseModel):
         )
 
 
+class TextExtractionSettings(BaseModel):
+    filter_non_english_words: bool
+    min_word_length: int
+    min_word_frequency: float
+    remove_non_alpha: bool
+
+
 class SpanData(BaseModel):
     bounding_box: BoundingBox
     text: str
 
-    @property
-    def clean_text(self) -> str:
-        if zipf_frequency(self.text, lang="en") > 3:
-            return self.text
-
+    def clean_text(self, settings: TextExtractionSettings) -> str:
         cleaned = []
-        for word in self.text.split(" "):
-            if zipf_frequency(word, lang="en") > 4:
-                cleaned.append(word)
-
+        for word in self.text.split():
+            if settings.remove_non_alpha and not word.isalpha():
+                continue
+            if len(word) < settings.min_word_length:
+                continue
+            if (
+                settings.filter_non_english_words
+                and zipf_frequency(word, lang="en") < settings.min_word_frequency
+            ):
+                continue
+            cleaned.append(word)
         return " ".join(cleaned)
 
+    @staticmethod
     def from_pymupdf_span_json(span_json: json) -> "SpanData":
         return SpanData(
             bounding_box=BoundingBox.from_pymupdf_bbox_list(span_json["bbox"]),
@@ -90,26 +101,28 @@ class LineData(BaseModel):
     def span_count(self) -> int:
         return len(self.spans)
 
-    @property
-    def clean_spans(self) -> List[SpanData]:
-        """
-        Returns spans whose height is within 5% of the most common span height
-        if height_variation is above 0.1. Otherwise, returns all spans.
-        """
-        heights = [span.bounding_box.height for span in self.spans]
-        if not heights:
-            return []
-
-        most_common = Counter(heights).most_common(1)[0][0]
-        tolerance = 0.05 * most_common  # 5% tolerance
-        if self.height_variation > 0.1:
-            return [
-                span
-                for span in self.spans
-                if abs(span.bounding_box.height - most_common) <= tolerance
-            ]
-
-        return self.spans
+    # def clean_spans(self, settings: TextExtractionSettings) -> List[SpanData]:
+    #     """
+    #     Returns spans whose height is within 5% of the most common span height
+    #     if height_variation is above 0.1. Otherwise, returns all spans.
+    #     Optionally filters out spans with non-English/gibberish text.
+    #     """
+    #     # heights = [span.bounding_box.height for span in self.spans]
+    #     # if not heights:
+    #     #     return []
+    #     # most_common = Counter(heights).most_common(1)[0][0]
+    #     # tolerance = 0.05 * most_common  # 5% tolerance
+    #     # filtered_spans = self.spans
+    #     # if self.height_variation > 0.1:
+    #     #     filtered_spans = [
+    #     #         span
+    #     #         for span in self.spans
+    #     #         if abs(span.bounding_box.height - most_common) <= tolerance
+    #     #     ]
+    #     filtered_spans = [
+    #         span for span in self.spans if span.clean_text(settings).strip() != ""
+    #     ]
+    #     return filtered_spans
 
     def from_pymupdf_line_json(line_json: json) -> "LineData":
         return LineData(
@@ -156,18 +169,35 @@ class TextChunk(BaseModel):
     width: float
     height: float
 
-    def from_span_data(span_data: SpanData, page_number: int) -> "TextChunk":
+    @staticmethod
+    def from_span_data(
+        span_data: SpanData,
+        page_number: int,
+        settings: Optional[TextExtractionSettings] = None,
+    ) -> "TextChunk":
+        text = span_data.clean_text(settings) if settings else span_data.text
         return TextChunk(
             page_number=page_number,
-            text=span_data.text,
+            text=text,
             px_left=span_data.bounding_box.px_left,
             px_bottom=span_data.bounding_box.px_bottom,
             width=span_data.bounding_box.width,
             height=span_data.bounding_box.height,
         )
 
-    def from_line_data(line_data: LineData, page_number: int) -> "TextChunk":
-        text = " ".join([span.text for span in line_data.spans])
+    @staticmethod
+    def from_line_data(
+        line_data: LineData,
+        page_number: int,
+        settings: Optional[TextExtractionSettings] = None,
+    ) -> "TextChunk":
+        # spans = line_data.clean_spans(settings) if settings else line_data.spans
+        text = " ".join(
+            [
+                span.clean_text(settings) if settings else span.text
+                for span in line_data.spans
+            ]
+        )
         return TextChunk(
             page_number=page_number,
             text=text,
@@ -177,24 +207,22 @@ class TextChunk(BaseModel):
             height=line_data.bounding_box.height,
         )
 
+    @staticmethod
     def from_block_data(
         block_data: BlockData,
         page_number: int,
-        clean_spans: bool,
-        clean_text: bool,
+        settings: Optional[TextExtractionSettings] = None,
     ) -> "TextChunk":
-
         block_text = []
         for line in block_data.lines:
             line_text = []
-            span_list = line.clean_spans if clean_spans else line.spans
-            for span in span_list:
-                span_text = span.clean_text if clean_text else span.text
+            # spans = line.clean_spans(settings) if settings else line.spans
+            for span in line.spans:
+                span_text = span.clean_text(settings) if settings else span.text
                 if span_text:
                     line_text.append(span_text)
             block_text.append(" ".join(line_text))
         text = " ".join(block_text)
-
         return TextChunk(
             page_number=page_number,
             text=text,
@@ -209,7 +237,12 @@ class TextChunk(BaseModel):
 class ExtractRequest(BaseModel):
     pdf_url: str
     by: Literal["spans", "lines", "blocks"]
+    filter_non_english_words: bool
+    min_word_length: int
+    min_word_frequency: float
+    remove_non_alpha: bool
 
 
 class ExtractorOutput(BaseModel):
     text_chunks: List[TextChunk]
+    run_time_seconds: float

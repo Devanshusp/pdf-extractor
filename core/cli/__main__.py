@@ -79,9 +79,12 @@ def extract(ctx, pdf_url: str):
     doc_ms = (time.time() - s_time) * 1000
     print(f"Document processing took: {doc_ms:.2f}ms")
 
+    with open(f".local.data.json", "w", encoding="utf-8") as f:
+        json_list = [json.loads(data.model_dump_json()) for data in text_chunks]
+        json.dump(json_list, f, indent=2, ensure_ascii=False)
+
     with open(f".local.output.json", "w", encoding="utf-8") as f:
         json_list = final_output
-        # json_list = [json.loads(data.model_dump_json()) for data in final_output]
         json.dump(json_list, f, indent=2, ensure_ascii=False)
 
 

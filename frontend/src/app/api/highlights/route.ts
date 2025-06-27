@@ -2,13 +2,26 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
     try {
-        const { pdf_url, by, clean_spans, clean_text } = await request.json();
+        const {
+            pdf_url,
+            by,
+            filter_non_english_words,
+            min_word_length,
+            min_word_frequency,
+            remove_non_alpha
+        } = await request.json();
 
-        // Call your FastAPI backend
         const apiRes = await fetch('http://localhost:8000/extract', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pdf_url, by, clean_spans, clean_text }),
+            body: JSON.stringify({
+                pdf_url,
+                by,
+                filter_non_english_words,
+                min_word_length,
+                min_word_frequency,
+                remove_non_alpha
+            }),
         });
 
         if (!apiRes.ok) {
@@ -17,7 +30,10 @@ export async function POST(request: Request) {
         }
 
         const data = await apiRes.json();
-        return NextResponse.json(data);
+        return NextResponse.json({
+            text_chunks: data.text_chunks || [],
+            run_time_seconds: data.run_time_seconds ?? null
+        });
     } catch (error) {
         return NextResponse.json({ error: 'Failed to extract highlights' }, { status: 500 });
     }

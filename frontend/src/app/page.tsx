@@ -30,11 +30,13 @@ function HighlightsPanel({
   setSelectedExample,
   highlights,
   loading,
+  runTimeSeconds,
 }: {
   selectedExample: number | null;
   setSelectedExample: (index: number) => void;
   highlights: TextChunk[];
   loading: boolean;
+  runTimeSeconds: number | null;
 }) {
   const setHighlight = usePdf(state => state.setHighlight);
   const { jumpToHighlightRects } = usePdfJump();
@@ -55,30 +57,37 @@ function HighlightsPanel({
         {loading ? (
           <div className="text-center py-4 text-gray-500">Loading transcript...</div>
         ) : (
-          <List
-            height={540}
-            itemCount={highlights.length}
-            itemSize={56}
-            width={340}
-          >
-            {({ index, style }: ListChildComponentProps) => {
-              const chunk = highlights[index];
-              return (
-                <div
-                  key={`${chunk.page_number}-${index}`}
-                  style={style}
-                  onClick={() => handleExampleClick(chunk, index)}
-                  className={`cursor-pointer px-3 py-2 rounded transition-colors duration-75 mb-1 text-sm leading-relaxed break-words
-                    ${selectedExample === index
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-white text-gray-800 hover:bg-gray-100"
-                    }`}
-                >
-                  {chunk.text}
-                </div>
-              );
-            }}
-          </List>
+          <>
+            {runTimeSeconds !== null && (
+              <div className="text-xs text-gray-500 px-4 py-2 border-b border-gray-100">
+                Extraction time: {runTimeSeconds.toFixed(2)} seconds
+              </div>
+            )}
+            <List
+              height={540}
+              itemCount={highlights.length}
+              itemSize={56}
+              width={340}
+            >
+              {({ index, style }: ListChildComponentProps) => {
+                const chunk = highlights[index];
+                return (
+                  <div
+                    key={`${chunk.page_number}-${index}`}
+                    style={style}
+                    onClick={() => handleExampleClick(chunk, index)}
+                    className={`cursor-pointer px-3 py-2 rounded transition-colors duration-75 mb-1 text-sm leading-relaxed break-words
+                      ${selectedExample === index
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-white text-gray-800 hover:bg-gray-100"
+                      }`}
+                  >
+                    {chunk.text}
+                  </div>
+                );
+              }}
+            </List>
+          </>
         )}
       </div>
     </div>
@@ -103,11 +112,21 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   // Settings state
   const [by, setBy] = useState<'spans' | 'lines' | 'blocks'>('blocks');
-  const [cleanSpans, setCleanSpans] = useState(false);
-  const [cleanText, setCleanText] = useState(false);
+  const [filterNonEnglishWords, setFilterNonEnglishWords] = useState(false);
+  const [minWordLength, setMinWordLength] = useState(1);
+  const [minWordFrequency, setMinWordFrequency] = useState(1);
+  const [removeNonAlpha, setRemoveNonAlpha] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runTimeSeconds, setRunTimeSeconds] = useState<number | null>(null);
 
-  const loadHighlights = async (url?: string, by: "spans" | "lines" | "blocks" = "blocks", clean_spans: boolean = false, clean_text: boolean = false) => {
+  const loadHighlights = async (
+    url?: string,
+    by: "spans" | "lines" | "blocks" = "blocks",
+    filter_non_english_words: boolean = true,
+    min_word_length: number = 1,
+    min_word_frequency: number = 1,
+    remove_non_alpha: boolean = true
+  ) => {
     setLoading(true);
     setError(null);
     try {
@@ -115,11 +134,19 @@ export default function Home() {
       const response = await fetch('/api/highlights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdf_url: url, by, clean_spans, clean_text }),
+        body: JSON.stringify({
+          pdf_url: url,
+          by,
+          filter_non_english_words,
+          min_word_length,
+          min_word_frequency,
+          remove_non_alpha
+        }),
       });
       if (response.ok) {
         const data = await response.json();
         setHighlights(data.text_chunks || []);
+        setRunTimeSeconds(data.run_time_seconds ?? null);
       } else {
         console.error('Failed to load highlights:', response.statusText);
         const errorText = await response.text();
@@ -137,7 +164,14 @@ export default function Home() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (pdfUrl) {
-      loadHighlights(pdfUrl, by, cleanSpans, cleanText);
+      loadHighlights(
+        pdfUrl,
+        by,
+        filterNonEnglishWords,
+        minWordLength,
+        minWordFrequency,
+        removeNonAlpha
+      );
       setDisplayedPdfUrl(pdfUrl);
     }
   };
@@ -193,20 +227,41 @@ export default function Home() {
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={cleanSpans}
-              onChange={e => setCleanSpans(e.target.checked)}
+              checked={filterNonEnglishWords}
+              onChange={e => setFilterNonEnglishWords(e.target.checked)}
               className="accent-blue-600"
             />
-            Clean Spans
+            Filter by Word Freq
           </label>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={cleanText}
-              onChange={e => setCleanText(e.target.checked)}
+              checked={removeNonAlpha}
+              onChange={e => setRemoveNonAlpha(e.target.checked)}
               className="accent-blue-600"
             />
-            Clean Text
+            Remove Non-Alpha
+          </label>
+          <label className="flex items-center gap-2">
+            <span>Min Word Length:</span>
+            <input
+              type="number"
+              min={1}
+              value={minWordLength}
+              onChange={e => setMinWordLength(Number(e.target.value))}
+              className="w-14 border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <span>Min Word Freq (1-8):</span>
+            <input
+              type="number"
+              step={0.1}
+              min={0}
+              value={minWordFrequency}
+              onChange={e => setMinWordFrequency(Number(e.target.value))}
+              className="w-16 border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
+            />
           </label>
         </div>
       </form>
@@ -228,6 +283,7 @@ export default function Home() {
                 setSelectedExample={setSelectedExample}
                 highlights={highlights}
                 loading={loading}
+                runTimeSeconds={runTimeSeconds}
               />
             </div>
           </Root>

@@ -1,5 +1,6 @@
 # Project
 local.yml
+**/local.yml
 .local.*
 
 # Python

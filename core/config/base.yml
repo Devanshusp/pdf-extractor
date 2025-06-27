@@ -1,6 +1,6 @@
 llm:
   model_name: gemini/gemini-2.5-flash-preview-04-17
-  api_key: 
+  api_key: temp
 
 max_pdf_file_size_bytes: 52_428_800 # 50MB
 max_pdf_file_page_count: 2000 # 2000 pages

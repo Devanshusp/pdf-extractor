@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from typing import List, Literal
 
 import pymupdf
@@ -6,11 +7,7 @@ import requests
 
 from .config import ExtractorConfig
 from .lm import LLM
-from .output import PageData, TextChunk
-
-# TODO:
-# 2) upload backend to fastapi server (2cpu, 2gb)
-# 3) make frontend use this server
+from .output import PageData, TextChunk, TextExtractionSettings
 
 
 class Extractor:
@@ -30,7 +27,7 @@ class Extractor:
             max_pdf_file_page_count=config.max_pdf_file_page_count,
         )
 
-    # cache this data <33
+    @lru_cache(maxsize=6)
     def extract_pdf(self, pdf_url: str) -> List[PageData]:
         """
         Extract text data from a PDF using built-in text and OCR capabilities.
@@ -58,12 +55,20 @@ class Extractor:
         self,
         pdf_page_data: List[PageData],
         by: Literal["spans", "lines", "blocks"] = "spans",
-        clean_spans: bool = False,
-        clean_text: bool = False,
+        filter_non_english_words: bool = True,
+        min_word_length: int = 2,
+        min_word_frequency: float = 4.0,
+        remove_non_alpha: bool = True,
     ) -> List[TextChunk]:
         """
         Converts extracted page data into text chunks optimized for highlighting based on settings.
         """
+        settings = TextExtractionSettings(
+            filter_non_english_words=filter_non_english_words,
+            min_word_length=min_word_length,
+            min_word_frequency=min_word_frequency,
+            remove_non_alpha=remove_non_alpha,
+        )
         text_chunks: List[TextChunk] = []
         for page in pdf_page_data:
             page_number = page.page_number
@@ -73,13 +78,21 @@ class Extractor:
                     for line in block.lines:
                         for span in line.spans:
                             text_chunks.append(
-                                TextChunk.from_span_data(span, page_number=page_number)
+                                TextChunk.from_span_data(
+                                    span,
+                                    page_number=page_number,
+                                    settings=settings,
+                                )
                             )
             elif by == "lines":
                 for block in page.blocks:
                     for line in block.lines:
                         text_chunks.append(
-                            TextChunk.from_line_data(line, page_number=page_number)
+                            TextChunk.from_line_data(
+                                line,
+                                page_number=page_number,
+                                settings=settings,
+                            )
                         )
             elif by == "blocks":
                 for block in page.blocks:
@@ -87,12 +100,15 @@ class Extractor:
                         TextChunk.from_block_data(
                             block,
                             page_number=page_number,
-                            clean_spans=clean_spans,
-                            clean_text=clean_text,
+                            settings=settings,
                         )
                     )
 
-        return text_chunks
+        return [
+            text_chunk
+            for text_chunk in text_chunks
+            if len(set(text_chunk.text) - {" ", "\t", "\n", "\r"}) > 0
+        ]
 
     def _validate_and_download_pdf(self, pdf_url: str) -> pymupdf.Document:
         """
